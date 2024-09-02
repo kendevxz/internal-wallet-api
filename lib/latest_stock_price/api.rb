@@ -1,6 +1,9 @@
+require 'faraday'
+require 'json'
+
 module LatestStockPrice
   class API
-    BASE_URL = 'https"//latest-stock-price.p.rapidapi.com'
+    BASE_URL = 'https://latest-stock-price.p.rapidapi.com'
 
     def self.price(stock_symbol)
       request("/price?symbol=#{stock_symbol}")
@@ -21,9 +24,17 @@ module LatestStockPrice
         req.headers['X-RapidAPI-Key'] = ENV['RAPIDAPI_KEY']
         req.headers['X-RapidAPI-Host'] = 'latest-stock-price.p.rapidapi.com'
       end
-      JSON.parse(response.body)
+      parse_response(response)
+    rescue Faraday::Error => e
+      { 'error' => "Request failed: #{e.message}" }
     rescue StandardError => e
-      { error: e.message }
+      { 'error' => "An error occurred: #{e.message}" }
+    end
+
+    def self.parse_response(response)
+      JSON.parse(response.body)
+    rescue JSON::ParserError
+      { error: 'Invalid JSON response' }
     end
   end
 end

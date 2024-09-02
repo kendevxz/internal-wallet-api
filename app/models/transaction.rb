@@ -14,17 +14,19 @@ class Transaction < ApplicationRecord
       errors.add(:source_wallet, 'must be nil') if source_wallet.present?
       errors.add(:target_wallet, 'must be present') unless target_wallet.present?
     elsif transaction_type == 'Debit'
-      errors.add(:target_wallet, 'must be nil') if target_wallet.present?
       errors.add(:source_wallet, 'must be present') unless source_wallet.present?
-      errors.add(:source_wallet, 'insufficient funds') if source_wallet&.balance < amount
+      errors.add(:source_wallet, 'insufficient funds') if source_wallet&.balance.to_f < amount
     end
   end
 
   def update_wallet_balances
-    if transaction_type == 'Credit'
-      target_wallet.update(balance: target_wallet.balance + amount)
-    elsif transaction_type == 'Debit'
-      target_wallet.update(balance: source_wallet.balance - amount)
+    ActiveRecord::Base.transaction do
+      if transaction_type == 'Credit'
+        target_wallet.update!(balance: target_wallet.balance + amount)
+      elsif transaction_type == 'Debit'
+        source_wallet.update!(balance: source_wallet.balance - amount)
+        target_wallet.update!(balance: target_wallet.balance + amount) if target_wallet
+      end
     end
   end
 end
